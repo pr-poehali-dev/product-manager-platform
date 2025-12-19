@@ -1,10 +1,11 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import Icon from "@/components/ui/icon";
 import { useToast } from "@/hooks/use-toast";
+import * as XLSX from 'xlsx';
 import {
   Table,
   TableBody,
@@ -66,6 +67,7 @@ const Index = () => {
   const [isAddProductOpen, setIsAddProductOpen] = useState(false);
   const [editingUserIndex, setEditingUserIndex] = useState<number | null>(null);
   const [editingUserName, setEditingUserName] = useState("");
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const addProduct = () => {
     if (!newProduct.name || !newProduct.code || !newProduct.unit) {
@@ -103,6 +105,59 @@ const Index = () => {
       title: "Успешно",
       description: "Товар удален из каталога",
     });
+  };
+
+  const handleImportExcel = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const data = new Uint8Array(event.target?.result as ArrayBuffer);
+        const workbook = XLSX.read(data, { type: 'array' });
+        const sheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[sheetName];
+        const jsonData = XLSX.utils.sheet_to_json<any>(worksheet);
+
+        let addedCount = 0;
+        let skippedCount = 0;
+
+        jsonData.forEach((row) => {
+          const name = row['Название'] || row['название'] || row['name'] || '';
+          const code = row['Код'] || row['код'] || row['code'] || '';
+          const unit = row['Единица'] || row['единица'] || row['unit'] || '';
+
+          if (name && code && unit) {
+            const isDuplicate = products.some(p => p.code === code);
+            if (!isDuplicate) {
+              setProducts(prev => [...prev, {
+                id: Date.now().toString() + Math.random(),
+                name: name.toString(),
+                code: code.toString(),
+                unit: unit.toString()
+              }]);
+              addedCount++;
+            } else {
+              skippedCount++;
+            }
+          }
+        });
+
+        toast({
+          title: "Импорт завершен",
+          description: `Добавлено: ${addedCount}, пропущено (дубликаты): ${skippedCount}`,
+        });
+      } catch (error) {
+        toast({
+          title: "Ошибка импорта",
+          description: "Не удалось прочитать файл. Проверьте формат.",
+          variant: "destructive",
+        });
+      }
+    };
+    reader.readAsArrayBuffer(file);
+    if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
   const addOrder = (productId: string, quantity: number) => {
@@ -299,13 +354,28 @@ const Index = () => {
             <div className="space-y-4">
               <div className="flex justify-between items-center">
                 <h2 className="text-xl font-semibold">Управление каталогом</h2>
-                <Dialog open={isAddProductOpen} onOpenChange={setIsAddProductOpen}>
-                  <DialogTrigger asChild>
-                    <Button>
-                      <Icon name="Plus" className="mr-2" size={18} />
-                      Добавить товар
-                    </Button>
-                  </DialogTrigger>
+                <div className="flex gap-2">
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept=".xlsx,.xls,.csv"
+                    onChange={handleImportExcel}
+                    className="hidden"
+                  />
+                  <Button
+                    variant="outline"
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    <Icon name="Upload" className="mr-2" size={18} />
+                    Импорт из Excel
+                  </Button>
+                  <Dialog open={isAddProductOpen} onOpenChange={setIsAddProductOpen}>
+                    <DialogTrigger asChild>
+                      <Button>
+                        <Icon name="Plus" className="mr-2" size={18} />
+                        Добавить товар
+                      </Button>
+                    </DialogTrigger>
                   <DialogContent>
                     <DialogHeader>
                       <DialogTitle>Новый товар</DialogTitle>
