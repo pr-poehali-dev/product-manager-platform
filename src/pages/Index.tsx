@@ -376,7 +376,7 @@ const Index = () => {
                         Добавить товар
                       </Button>
                     </DialogTrigger>
-                  <DialogContent>
+                    <DialogContent>
                     <DialogHeader>
                       <DialogTitle>Новый товар</DialogTitle>
                     </DialogHeader>
@@ -409,8 +409,9 @@ const Index = () => {
                         Добавить
                       </Button>
                     </div>
-                  </DialogContent>
-                </Dialog>
+                    </DialogContent>
+                  </Dialog>
+                </div>
               </div>
 
               <Card>
